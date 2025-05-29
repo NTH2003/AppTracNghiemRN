@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "24941782274",
+    "project_id": "apptracnghiem-53443",
+    "storage_bucket": "apptracnghiem-53443.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:24941782274:android:73a37cb29665d120314e1b",
+        "android_client_info": {
+          "package_name": "com.apptracnghiem"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDocXNrlEWVd6GJuOnLGSd80EfMYp_eJT8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

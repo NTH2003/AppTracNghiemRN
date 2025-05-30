@@ -79,7 +79,11 @@ const AddTopic = ({ navigation }) => {
         'Chủ đề đã được thêm thành công!',
         [{ 
           text: 'OK', 
-          onPress: () => navigation.goBack() 
+          onPress: () => {
+            setName('');
+            setDescription('');
+            navigation.goBack();
+          }
         }]
       );
     } catch (error) {
@@ -218,10 +222,10 @@ const AddTopic = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.submitButton,
-              (!name.trim() || nameError || loading) && styles.submitButtonDisabled
+              (!name.trim() || !!nameError || loading) && styles.submitButtonDisabled
             ]}
             onPress={handleAddTopic}
-            disabled={!name.trim() || nameError || loading}
+            disabled={!name.trim() || !!nameError || loading}
           >
             {loading ? (
               <View style={styles.loadingContainer}>

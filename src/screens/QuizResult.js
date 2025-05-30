@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import firestore from '@react-native-firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -28,6 +29,8 @@ const COLORS = {
 
 const QuizResult = ({ route, navigation }) => {
   const { result, quiz } = route.params;
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const getScoreColor = () => {
     const score = parseInt(result.score, 10);
@@ -37,15 +40,21 @@ const QuizResult = ({ route, navigation }) => {
   };
 
   const renderAnswerReview = () => {
-    return quiz.questions.map((question, index) => {
-      const answer = result.answers[index];
+    if (loading) {
+      return <Text style={{ textAlign: 'center' }}>Đang tải câu hỏi...</Text>;
+    }
+    if (!questions || questions.length === 0) {
+      return <Text style={{ color: 'red', textAlign: 'center' }}>Không có dữ liệu câu hỏi để hiển thị kết quả.</Text>;
+    }
+    return questions.map((question, idx) => {
+      const answer = result.answers.find(a => a.questionId === question.id);
       const isAnswered = answer && typeof answer.selectedAnswer === 'number';
-      const isCorrect = answer && answer.isCorrect;
+      const isCorrect = isAnswered && answer.selectedAnswer === question.answer;
       return (
-        <View key={index} style={styles.answerContainer}>
+        <View key={idx} style={styles.answerContainer}>
           <View style={styles.questionHeader}>
             <View style={styles.questionNumberBadge}>
-              <Text style={styles.questionNumber}>Câu {index + 1}</Text>
+              <Text style={styles.questionNumber}>Câu {idx + 1}</Text>
             </View>
             <View style={[
               styles.resultIndicator,
@@ -64,7 +73,7 @@ const QuizResult = ({ route, navigation }) => {
               </Text>
             </View>
           </View>
-          <Text style={styles.questionText}>{question.content}</Text>
+          <Text style={styles.questionText}>{question.question || question.content}</Text>
           <View style={styles.answerDetails}>
             <View style={styles.answerRow}>
               <Text style={styles.answerLabel}>Câu trả lời của bạn:</Text>
@@ -72,7 +81,7 @@ const QuizResult = ({ route, navigation }) => {
                 styles.answerText,
                 isCorrect ? { color: COLORS.success } : { color: COLORS.error }
               ]}>
-                {isAnswered && question.options[answer.selectedAnswer] !== undefined
+                {isAnswered && question.options && question.options[answer.selectedAnswer] !== undefined
                   ? question.options[answer.selectedAnswer]
                   : 'Chưa trả lời'}
               </Text>
@@ -81,9 +90,9 @@ const QuizResult = ({ route, navigation }) => {
               <View style={styles.answerRow}>
                 <Text style={styles.answerLabel}>Đáp án đúng:</Text>
                 <Text style={[styles.answerText, { color: COLORS.success }]}> 
-                  {typeof question.correctAnswer === 'number' && question.options[question.correctAnswer] !== undefined
-                    ? question.options[question.correctAnswer]
-                    : question.correctAnswer}
+                  {typeof question.answer === 'number' && question.options && question.options[question.answer] !== undefined
+                    ? question.options[question.answer]
+                    : question.answer}
                 </Text>
               </View>
             )}
@@ -92,6 +101,22 @@ const QuizResult = ({ route, navigation }) => {
       );
     });
   };
+
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      if (!quiz?.id) return;
+      setLoading(true);
+      try {
+        const snap = await firestore().collection('questions').where('quizId', '==', quiz.id).get();
+        setQuestions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (error) {
+        setQuestions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQuestions();
+  }, [quiz?.id]);
 
   return (
     <SafeAreaView style={styles.container}>

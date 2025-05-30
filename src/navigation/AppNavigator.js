@@ -25,6 +25,7 @@ import TopicDetail from '../screens/TopicDetail';
 import QuizPreview from '../screens/QuizPreview';
 import EditQuiz from '../screens/EditQuiz';
 import EditTopic from '../screens/EditTopic';
+import Settings from '../screens/Settings';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -198,7 +199,7 @@ function UserDrawerScreens() {
       />
       <Drawer.Screen 
         name="Cài đặt" 
-        component={Profile} // Tạm thời dùng Profile, sau này tạo screen riêng
+        component={Settings}
         options={{
           title: '⚙️ Cài đặt',
         }}
@@ -374,7 +375,7 @@ export default function AppNavigator() {
           <Stack.Screen 
             name="ChangePassword" 
             component={ChangePassword} 
-            options={{ 
+            options={({ navigation }) => ({ 
               title: "🔐 Đổi mật khẩu",
               headerLeft: () => (
                 <TouchableOpacity 
@@ -385,7 +386,7 @@ export default function AppNavigator() {
                   <Icon name="arrow-back" size={24} color={COLORS.white} />
                 </TouchableOpacity>
               ),
-            }} 
+            })} 
           />
           <Stack.Screen name="ThongKe" component={Leaderboard} options={{ title: 'Thống kê' }} />
           <Stack.Screen

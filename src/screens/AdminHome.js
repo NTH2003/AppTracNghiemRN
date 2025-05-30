@@ -131,11 +131,30 @@ const AdminHome = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await firestore().collection('topics').doc(topic.id).delete();
+              // 1. Lấy tất cả quiz thuộc chủ đề
+              const quizzesSnap = await firestore().collection('quizzes').where('topicId', '==', topic.id).get();
+              const batch = firestore().batch();
+              const quizIds = [];
+              quizzesSnap.forEach(doc => {
+                quizIds.push(doc.id);
+                batch.delete(doc.ref);
+              });
+              // 2. Xóa tất cả kết quả làm bài liên quan đến các quiz này
+              if (quizIds.length > 0) {
+                const resultsSnap = await firestore().collection('results').where('quizId', 'in', quizIds).get();
+                resultsSnap.forEach(resultDoc => {
+                  batch.delete(resultDoc.ref);
+                });
+              }
+              // 3. Xóa chủ đề
+              const topicRef = firestore().collection('topics').doc(topic.id);
+              batch.delete(topicRef);
+              // 4. Commit batch
+              await batch.commit();
               setTopics(prev => prev.filter(t => t.id !== topic.id));
               Alert.alert('Thành công', 'Đã xóa chủ đề!');
             } catch (error) {
-              Alert.alert('Lỗi', 'Không thể xóa chủ đề!');
+              Alert.alert('Lỗi', 'Không thể xóa chủ đề hoặc dữ liệu liên quan!');
             }
           }
         }

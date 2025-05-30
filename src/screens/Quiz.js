@@ -40,6 +40,7 @@ const COLORS = {
 const Quiz = ({ route, navigation }) => {
   const { quizId, quizTitle } = route.params;
   const [quiz, setQuiz] = useState(null);
+  const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -92,8 +93,8 @@ const Quiz = ({ route, navigation }) => {
   }, [quiz]);
 
   useEffect(() => {
-    if (quiz) {
-      const progress = (currentQuestionIndex + 1) / quiz.questions.length;
+    if (questions.length > 0) {
+      const progress = (currentQuestionIndex + 1) / questions.length;
       Animated.timing(progressAnim, {
         toValue: progress,
         duration: 300,
@@ -104,8 +105,16 @@ const Quiz = ({ route, navigation }) => {
 
   const loadQuiz = async () => {
     try {
-      const quizData = await getQuizById(quizId);
-      setQuiz(quizData);
+      // 1. Lấy quiz info
+      const quizDoc = await firestore().collection('quizzes').doc(quizId).get();
+      if (quizDoc.exists) {
+        setQuiz({ id: quizDoc.id, ...quizDoc.data() });
+      }
+      // 2. Lấy câu hỏi
+      const snap = await firestore().collection('questions').where('quizId', '==', quizId).get();
+      const fetchedQuestions = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setQuestions(fetchedQuestions);
+      setTimeRemaining((quizDoc.data().timeLimit || 10) * 60);
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể tải quiz');
     } finally {
@@ -141,7 +150,7 @@ const Quiz = ({ route, navigation }) => {
   };
 
   const handleNext = () => {
-    if (currentQuestionIndex < quiz.questions.length - 1) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     }
   };
@@ -170,14 +179,13 @@ const Quiz = ({ route, navigation }) => {
       const result = {
         score,
         correctAnswers: countCorrectAnswers(),
-        totalQuestions: quiz.questions.length,
+        totalQuestions: questions.length,
         timeSpent: duration,
         answers: Object.entries(selectedAnswers).map(([index, answerIndex]) => {
           const idx = parseInt(index, 10);
           return {
-            questionId: quiz.questions[idx]?.id || idx,
-            selectedAnswer: answerIndex,
-            isCorrect: answerIndex === quiz.questions[idx]?.correctAnswer
+            questionId: questions[idx]?.id || idx,
+            selectedAnswer: answerIndex
           };
         }),
         quizTitle: quiz.title || quizTitle || 'Quiz',
@@ -202,7 +210,7 @@ const Quiz = ({ route, navigation }) => {
   };
 
   const handleSubmit = async () => {
-    const unansweredCount = quiz.questions.length - Object.keys(selectedAnswers).length;
+    const unansweredCount = questions.length - Object.keys(selectedAnswers).length;
     if (unansweredCount > 0) {
       Alert.alert(
         'Chưa hoàn thành',
@@ -219,12 +227,12 @@ const Quiz = ({ route, navigation }) => {
 
   const calculateScore = () => {
     const correctCount = countCorrectAnswers();
-    return Math.round((correctCount / quiz.questions.length) * 100);
+    return Math.round((correctCount / questions.length) * 100);
   };
 
   const countCorrectAnswers = () => {
     return Object.entries(selectedAnswers).reduce((count, [index, answerIndex]) => {
-      return answerIndex === quiz.questions[index]?.correctAnswer ? count + 1 : count;
+      return answerIndex === questions[index]?.answer ? count + 1 : count;
     }, 0);
   };
 
@@ -251,8 +259,16 @@ const Quiz = ({ route, navigation }) => {
     );
   }
 
-  const currentQuestion = quiz.questions[currentQuestionIndex];
-  const progressPercentage = ((currentQuestionIndex + 1) / quiz.questions.length) * 100;
+  if (!quiz || questions.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Quiz không có câu hỏi nào.</Text>
+      </View>
+    );
+  }
+
+  const currentQuestion = questions[currentQuestionIndex];
+  const progressPercentage = ((currentQuestionIndex + 1) / questions.length) * 100;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -262,7 +278,7 @@ const Quiz = ({ route, navigation }) => {
       <View style={styles.progressHeader}>
         <View style={styles.progressInfo}>
           <Text style={styles.questionCounter}>
-            Câu {currentQuestionIndex + 1} / {quiz.questions.length}
+            Câu {currentQuestionIndex + 1} / {questions.length}
           </Text>
           <Text style={styles.progressPercentage}>
             {Math.round(progressPercentage)}% hoàn thành
@@ -308,7 +324,9 @@ const Quiz = ({ route, navigation }) => {
             </View>
           </View>
           
-          <Text style={styles.questionText}>{currentQuestion.content}</Text>
+          <Text style={styles.questionText}>
+            {currentQuestion.question || currentQuestion.content || 'Không có nội dung câu hỏi'}
+          </Text>
         </View>
 
         {/* Answer Options */}
@@ -356,7 +374,7 @@ const Quiz = ({ route, navigation }) => {
 
         {/* Question Navigation Dots */}
         <View style={styles.questionDots}>
-          {quiz.questions.map((_, index) => (
+          {questions.map((_, index) => (
             <TouchableOpacity
               key={index}
               style={[
@@ -396,11 +414,11 @@ const Quiz = ({ route, navigation }) => {
 
         <View style={styles.centerInfo}>
           <Text style={styles.answeredCount}>
-            Đã trả lời: {Object.keys(selectedAnswers).length}/{quiz.questions.length}
+            Đã trả lời: {Object.keys(selectedAnswers).length}/{questions.length}
           </Text>
         </View>
 
-        {currentQuestionIndex === quiz.questions.length - 1 ? (
+        {currentQuestionIndex === questions.length - 1 ? (
           <TouchableOpacity
             style={[styles.navButton, styles.submitButton]}
             onPress={handleSubmit}

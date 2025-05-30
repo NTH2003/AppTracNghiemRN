@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
@@ -6,11 +6,26 @@ const EditQuiz = ({ route, navigation }) => {
   const { quizId, quizData } = route.params;
   const [title, setTitle] = useState(quizData.title);
   const [timeLimit, setTimeLimit] = useState(String(quizData.timeLimit));
-  const [questions, setQuestions] = useState(quizData.questions);
+  const [questions, setQuestions] = useState([]);
+
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const snap = await firestore()
+          .collection('questions')
+          .where('quizId', '==', quizId)
+          .get();
+        setQuestions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (error) {
+        setQuestions([]);
+      }
+    };
+    fetchQuestions();
+  }, [quizId]);
 
   const handleQuestionChange = (index, value) => {
     const newQuestions = [...questions];
-    newQuestions[index].content = value;
+    newQuestions[index].question = value;
     setQuestions(newQuestions);
   };
 
@@ -22,7 +37,7 @@ const EditQuiz = ({ route, navigation }) => {
 
   const handleCorrectAnswerChange = (qIdx, oIdx) => {
     const newQuestions = [...questions];
-    newQuestions[qIdx].correctAnswer = oIdx;
+    newQuestions[qIdx].answer = oIdx;
     setQuestions(newQuestions);
   };
 
@@ -31,9 +46,34 @@ const EditQuiz = ({ route, navigation }) => {
       await firestore().collection('quizzes').doc(quizId).update({
         title,
         timeLimit: parseInt(timeLimit),
-        questions,
         updatedAt: new Date().toISOString(),
       });
+      // Xóa các câu hỏi đã bị xóa khỏi state (chỉ xóa trên Firestore nếu có id)
+      const originalSnap = await firestore().collection('questions').where('quizId', '==', quizId).get();
+      const originalIds = originalSnap.docs.map(doc => doc.id);
+      const currentIds = questions.filter(q => q.id).map(q => q.id);
+      for (const id of originalIds) {
+        if (!currentIds.includes(id)) {
+          await firestore().collection('questions').doc(id).delete();
+        }
+      }
+      // Cập nhật từng câu hỏi còn lại
+      for (const q of questions) {
+        if (q.id) {
+          await firestore().collection('questions').doc(q.id).update({
+            question: q.question,
+            options: q.options,
+            answer: q.answer,
+          });
+        } else {
+          await firestore().collection('questions').add({
+            quizId,
+            question: q.question,
+            options: q.options,
+            answer: q.answer,
+          });
+        }
+      }
       Alert.alert('Thành công', 'Quiz đã được cập nhật!');
       navigation.goBack();
     } catch (error) {
@@ -58,26 +98,38 @@ const EditQuiz = ({ route, navigation }) => {
         keyboardType="numeric"
       />
 
-      {questions.map((q, qIdx) => (
-        <View key={qIdx} style={styles.questionBlock}>
-          <Text style={styles.questionLabel}>Câu hỏi {qIdx + 1}</Text>
+      {Array.isArray(questions) && questions.map((q, qIdx) => (
+        <View key={q.id || qIdx} style={styles.questionBlock}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={styles.questionLabel}>Câu hỏi {qIdx + 1}</Text>
+            {questions.length > 1 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setQuestions(prev => prev.filter((_, idx) => idx !== qIdx));
+                }}
+                style={{ padding: 4 }}
+              >
+                <Text style={{ color: '#f44336', fontWeight: 'bold', fontSize: 18 }}>X</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <TextInput
             style={styles.input}
-            value={q.content}
+            value={q.question}
             onChangeText={value => handleQuestionChange(qIdx, value)}
             placeholder="Nội dung câu hỏi"
           />
           <Text style={styles.optionsLabel}>Các lựa chọn:</Text>
-          {q.options.map((opt, oIdx) => (
+          {q.options && q.options.map((opt, oIdx) => (
             <View key={oIdx} style={styles.optionRow}>
               <TouchableOpacity
                 style={[
                   styles.radio,
-                  q.correctAnswer === oIdx && styles.radioSelected
+                  q.answer === oIdx && styles.radioSelected
                 ]}
                 onPress={() => handleCorrectAnswerChange(qIdx, oIdx)}
               >
-                {q.correctAnswer === oIdx && <View style={styles.radioDot} />}
+                {q.answer === oIdx && <View style={styles.radioDot} />}
               </TouchableOpacity>
               <TextInput
                 style={[
@@ -92,6 +144,23 @@ const EditQuiz = ({ route, navigation }) => {
           ))}
         </View>
       ))}
+
+      <TouchableOpacity
+        style={[styles.saveButton, { backgroundColor: '#4caf50', marginTop: 0 }]}
+        onPress={() => {
+          setQuestions([
+            ...questions,
+            {
+              id: null,
+              question: '',
+              options: ['', '', '', ''],
+              answer: 0,
+            },
+          ]);
+        }}
+      >
+        <Text style={styles.saveButtonText}>+ Thêm câu hỏi</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
         <Text style={styles.saveButtonText}>Lưu thay đổi</Text>

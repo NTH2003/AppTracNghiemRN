@@ -62,14 +62,6 @@ const Home = ({ navigation }) => {
           <TouchableOpacity style={styles.headerButton}>
             <Icon name="search" size={24} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton}>
-            <View style={styles.notificationContainer}>
-              <Icon name="notifications" size={24} color="#fff" />
-              <View style={styles.notificationBadge}>
-                <Text style={styles.badgeText}>3</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
         </View>
       ),
       headerStyle: {
@@ -128,7 +120,7 @@ const Home = ({ navigation }) => {
         navigation.navigate('Achievements');
         break;
       case 'settings':
-        navigation.navigate('Settings');
+        navigation.navigate('Cài đặt');
         break;
       case 'help':
         navigation.navigate('Help');

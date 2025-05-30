@@ -90,32 +90,56 @@ const Login = ({ navigation }) => {
           navigation.replace('UserMain');
         }
       } else {
-        Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+        Alert.alert(
+          'Lỗi',
+          'Không tìm thấy thông tin người dùng',
+          [{ text: 'OK' }],
+          { cancelable: false }
+        );
       }
     } catch (error) {
       console.log('Login error:', error);
-      let errorMessage = 'Đăng nhập thất bại';
+      let errorTitle = 'Đăng nhập thất bại';
+      let errorMessage = 'Tên đăng nhập hoặc mật khẩu không đúng.';
       
       switch (error.code) {
         case 'auth/user-not-found':
-          errorMessage = 'Tài khoản không tồn tại';
-          break;
         case 'auth/wrong-password':
-          errorMessage = 'Mật khẩu không đúng';
+        case 'auth/invalid-credential':
+          errorTitle = 'Đăng nhập thất bại';
+          errorMessage = 'Tên đăng nhập hoặc mật khẩu không đúng.';
           break;
         case 'auth/invalid-email':
-          errorMessage = 'Email không hợp lệ';
+          errorTitle = 'Email không hợp lệ';
+          errorMessage = 'Email bạn nhập không đúng định dạng. Vui lòng kiểm tra lại.';
           break;
         case 'auth/too-many-requests':
-          errorMessage = 'Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau';
+          errorTitle = 'Quá nhiều lần thử';
+          errorMessage = 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau ít phút.';
           break;
         case 'auth/network-request-failed':
-          errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra lại kết nối';
+          errorTitle = 'Lỗi kết nối';
+          errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng của bạn.';
           break;
         default:
-          errorMessage = `Đăng nhập thất bại: ${error.message}`;
+          // Nếu là lỗi xác thực, cũng báo chung chung
+          if (
+            error.code &&
+            (error.code.includes('auth') || error.message?.toLowerCase().includes('credential'))
+          ) {
+            errorTitle = 'Đăng nhập thất bại';
+            errorMessage = 'Tên đăng nhập hoặc mật khẩu không đúng.';
+          } else {
+            errorMessage = `Đăng nhập thất bại. Vui lòng thử lại.`;
+          }
       }
-      Alert.alert('Lỗi', errorMessage);
+      
+      Alert.alert(
+        errorTitle,
+        errorMessage,
+        [{ text: 'OK' }],
+        { cancelable: false }
+      );
     } finally {
       setLoading(false);
     }

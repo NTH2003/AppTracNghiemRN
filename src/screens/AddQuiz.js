@@ -145,21 +145,31 @@ const AddQuiz = ({ route, navigation }) => {
 
     try {
       setLoading(true);
-      await firestore().collection('quizzes').add({
+      // 1. Lưu quiz trước, không lưu trường questions
+      const quizRef = await firestore().collection('quizzes').add({
         title: title.trim(),
         timeLimit: parseInt(timeLimit),
         topicId: selectedTopic,
         totalQuestions: questions.length,
-        questions: questions.map(q => ({
-          content: q.content.trim(),
-          options: q.options.map(o => o.trim()),
-          correctAnswer: q.correctAnswer
-        })),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         isActive: true,
       });
-
+      // 2. Lưu từng câu hỏi vào collection 'questions'
+      for (const q of questions) {
+        await firestore().collection('questions').add({
+          quizId: quizRef.id,
+          question: q.content.trim(),
+          options: q.options.map(o => o.trim()),
+          answer: q.correctAnswer
+        });
+      }
+      // 3. Reset form
+      setTitle('');
+      setTimeLimit('');
+      setQuestions([{ content: '', options: ['', '', '', ''], correctAnswer: 0 }]);
+      setSelectedTopic(topics.length > 0 ? topics[0].id : null);
+      setErrors({});
       Alert.alert(
         'Thành công',
         'Quiz đã được thêm thành công!',

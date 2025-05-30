@@ -40,7 +40,7 @@ const getTopicIcon = (topicName) => {
   const name = topicName.toLowerCase();
   if (name.includes('toán') || name.includes('math')) return 'calculator';
   if (name.includes('văn') || name.includes('literature')) return 'book-open';
-  if (name.includes('khoa học') || name.includes('science')) return 'flask';
+  if (name.includes('giáo dục công dân')) return 'account-group';
   if (name.includes('lịch sử') || name.includes('history')) return 'history';
   if (name.includes('địa lý') || name.includes('geography')) return 'earth';
   if (name.includes('tiếng anh') || name.includes('english')) return 'translate';
@@ -70,12 +70,19 @@ const Topic = ({ navigation }) => {
     try {
       setLoading(true);
       const topicsData = await getTopics();
-      setTopics(topicsData);
+      // Lấy số lượng đề thi cho từng chủ đề
+      const topicsWithQuizCount = await Promise.all(
+        topicsData.map(async (topic) => {
+          const quizzes = await getQuizzes(topic.id);
+          return { ...topic, quizCount: quizzes.length };
+        })
+      );
+      setTopics(topicsWithQuizCount);
 
-      if (topicsData.length > 0) {
-        const quizzesData = await getQuizzes(topicsData[0].id);
+      if (topicsWithQuizCount.length > 0) {
+        const quizzesData = await getQuizzes(topicsWithQuizCount[0].id);
         setQuizzes(quizzesData);
-        setSelectedTopic(topicsData[0].id);
+        setSelectedTopic(topicsWithQuizCount[0].id);
       }
     } catch (error) {
       console.log('Load data error:', error, JSON.stringify(error));
@@ -128,7 +135,7 @@ const Topic = ({ navigation }) => {
           {item.name}
         </Text>
         <Text style={styles.topicQuizCount}>
-          {quizzes.length} đề thi
+          {item.quizCount || 0} đề thi
         </Text>
         {isSelected && (
           <View style={[styles.selectedIndicator, { backgroundColor: topicColor }]}>
